@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AI 生图敏感词库、替换词库的局部交互原型，包含新增、编辑、只读查看、批量导入和批量修改。">
+  <title>LinkFox违禁词库 · 局部原型</title>
+  <style>
+    :root { color-scheme: light; --blue:#409eff; --blue-dark:#2476d6; --ink:#303133; --muted:#909399; --line:#dcdfe6; --soft:#f5f7fa; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#f3f5f8; color:var(--ink); font:14px/1.6 "Microsoft YaHei","PingFang SC",system-ui,sans-serif; }
+    button,select { font:inherit; }
+    button { cursor:pointer; }
+    button:focus-visible,select:focus-visible,input:focus-visible { outline:2px solid var(--blue); outline-offset:3px; }
+    button:disabled,select:disabled { cursor:not-allowed; }
+    [hidden] { display:none !important; }
+    .page { max-width:1220px; margin:auto; padding:18px 28px 20px; }
+    .top { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; }
+    .eyebrow { margin:0 0 3px; color:#7a8494; font-size:12px; letter-spacing:.5px; }
+    h1 { margin:0; color:#25344a; font-size:24px; font-weight:600; line-height:1.5; }
+    .subtitle { margin:4px 0 0; color:#697586; font-size:13px; }
+    .demo-badge { flex-shrink:0; margin-top:5px; border:1px solid #dce4ed; border-radius:4px; padding:4px 10px; color:#6a788b; background:white; font-size:12px; }
+    .toolbar { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; margin:14px 0; }
+    .tabs { display:flex; flex-wrap:wrap; padding:4px; border:1px solid #e2e7ee; border-radius:7px; background:#e9edf3; gap:3px; }
+    .tab { padding:8px 18px; color:#667085; border:0; background:transparent; border-radius:4px; }
+    .tab[aria-selected="true"] { background:white; color:var(--blue-dark); box-shadow:0 1px 4px #1e355012; font-weight:600; }
+    .reset { padding:5px 0; color:#667085; background:transparent; border:0; font-size:13px; }
+    .reset:hover { color:var(--blue-dark); }
+    .workbench { display:grid; grid-template-columns:210px minmax(0,1fr); gap:22px; align-items:start; }
+    .annotations { padding:8px 2px; color:#637085; font-size:13px; }
+    .annotations h2 { margin:0 0 7px; color:#344054; font-size:16px; font-weight:600; }
+    .annotations p { margin:0 0 10px; }
+    .demo-controls { border-top:1px solid #dfe5ed; padding-top:14px; margin-top:14px; }
+    .demo-controls label { display:block; color:#697586; font-size:12px; margin-bottom:7px; }
+    .demo-controls select { width:100%; background:transparent; color:#637085; border:1px solid #d3dae5; border-radius:4px; padding:5px 8px; font-size:12px; }
+    .query-demo-item:not([hidden]) ~ .query-demo-item:not([hidden]) { margin-top:12px; }
+    .query-demo { margin-top:12px; }
+    .query-controls { margin-top:14px; border-top:1px solid #dfe5ed; padding-top:10px; }
+    .preview-column { min-width:0; }
+    .stage { min-width:0; padding:12px 12px 12px 18px; background:#e4e9f0; border:1px solid #dce3ec; border-radius:8px; display:flex; justify-content:flex-end; align-items:flex-start; }
+    .stage[data-mode="import"],.stage[data-mode="bulk"] { padding:12px; justify-content:center; }
+    .panel { width:100%; max-width:760px; background:white; border:1px solid #e4e7ed; box-shadow:0 5px 24px #293c5514; }
+    .stage[data-mode="import"] .panel,.stage[data-mode="bulk"] .panel { border-radius:6px; overflow:hidden; }
+    .panel-header { display:flex; align-items:center; justify-content:space-between; min-height:52px; padding:11px 22px; border-bottom:1px solid #ebeef5; }
+    .panel-header h2 { margin:0; font-size:18px; font-weight:600; color:#222; }
+    .close { background:transparent; border:0; color:#909399; font-size:23px; padding:0 3px; line-height:1.2; }
+    .close:hover { color:var(--blue); }
+    .panel-body { padding:14px 22px 16px; }
+    .context-cut { display:flex; align-items:center; gap:12px; color:#a1a6b0; font-size:12px; margin:0 0 14px; }
+    .context-cut::before,.context-cut::after { content:""; height:1px; flex:1; background:repeating-linear-gradient(90deg,#e2e6ec 0 4px,transparent 4px 7px); }
+    .new-fields { position:relative; margin:0 -10px 22px; padding:16px 10px 14px; border:1px dashed #aed2fc; border-radius:5px; }
+    .annotation-tag { position:absolute; top:-10px; left:10px; padding:0 7px; background:white; color:#438bd9; font-size:11px; line-height:18px; }
+    .library-title { margin:0; }
+    .info { margin:0 0 14px; padding:9px 11px; display:flex; gap:8px; align-items:flex-start; border-left:3px solid #409eff; background:#f1f6ff; color:#4277c4; border-radius:3px; font-size:12px; }
+    .info-icon { display:inline-flex; justify-content:center; align-items:center; background:#4987e4; color:white; border-radius:50%; width:13px; height:13px; margin-top:3px; flex:0 0 13px; font-size:10px; font-family:serif; font-weight:bold; }
+    .field-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:18px; }
+    .field { min-width:0; }
+    .field-label { display:flex; align-items:center; gap:6px; margin-bottom:7px; color:#454b54; font-size:13px; font-weight:500; }
+    .select-wrap { position:relative; }
+    .select-wrap::after { content:""; position:absolute; right:13px; top:13px; width:7px; height:7px; border-right:1px solid #a8adb6; border-bottom:1px solid #a8adb6; transform:rotate(45deg); pointer-events:none; }
+    .select-wrap:focus-visible { outline:2px solid var(--blue); outline-offset:3px; border-radius:4px; }
+    .selection-tooltip { display:block; position:absolute; z-index:10; left:0; bottom:calc(100% + 8px); width:max-content; max-width:100%; padding:8px 10px; border-radius:4px; background:#303133; color:white; font-size:12px; line-height:1.6; white-space:normal; overflow-wrap:anywhere; box-shadow:0 3px 12px #0002; pointer-events:none; }
+    .selection-tooltip span { display:block; }
+    .selection-tooltip .tooltip-id { color:#dcdfe6; }
+    .choice { display:block; width:100%; height:36px; padding:0 57px 0 11px; color:#000; background:white; border:1px solid var(--line); border-radius:4px; appearance:none; -webkit-appearance:none; font-size:13px; text-overflow:ellipsis; }
+    button.choice { text-align:left; white-space:nowrap; overflow:hidden; }
+    .select-wrap.is-open .selection-tooltip { display:none; }
+    .candidate-menu { position:absolute; z-index:20; top:calc(100% + 6px); left:0; right:0; max-height:250px; overflow-y:auto; padding:4px; border:1px solid #dcdfe6; border-radius:4px; background:white; box-shadow:0 4px 16px #25344a24; }
+    .candidate-option { display:block; width:100%; padding:8px; text-align:left; border:0; border-radius:3px; background:white; color:#000; font-size:13px; }
+    .candidate-option:hover,.candidate-option:focus-visible { background:#ecf5ff; outline:1px solid #98c8fc; outline-offset:-1px; }
+    .candidate-option[aria-selected="true"] { background:#ecf5ff; font-weight:600; }
+    .candidate-name { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+    .candidate-id { display:block; margin-top:3px; font-size:11px; font-weight:400; overflow-wrap:anywhere; }
+    .candidate-tooltip { position:fixed; z-index:100; width:max-content; max-width:min(420px,calc(100vw - 24px)); padding:9px 12px; border-radius:4px; background:#303133; color:white; font-size:12px; line-height:1.65; overflow-wrap:anywhere; box-shadow:0 3px 12px #0002; pointer-events:none; }
+    .candidate-tooltip span { display:block; }
+    .candidate-tooltip .tooltip-id { margin-top:4px; color:#dcdfe6; }
+    .choice option { color:#000; }
+    .choice:hover { border-color:#b6bdc9; }
+    .choice:focus { border-color:var(--blue); outline:none; box-shadow:0 0 0 2px #409eff15; }
+    .choice.placeholder,.choice option[value=""] { color:#a3a8b2; }
+    .choice:disabled { background:#f5f7fa; border-color:#e4e7ed; -webkit-text-fill-color:currentColor; opacity:1; pointer-events:none; }
+    .choice[aria-invalid="true"] { border-color:#f56c6c; }
+    .clear-choice { position:absolute; right:29px; top:6px; width:23px; height:23px; padding:0; border:0; background:transparent; color:#a5abb5; line-height:23px; font-size:18px; }
+    .clear-choice:hover { color:#606266; }
+    .help { color:#909399; font-size:12px; margin:7px 0 0; line-height:1.65; }
+    .id-detail { margin:5px 0 0; color:#606266; font-size:12px; overflow-wrap:anywhere; }
+    .error { color:#df5b57; font-size:12px; margin-top:5px; }
+    .retry { color:#409eff; background:transparent; border:0; font-size:12px; padding:0 3px; }
+    .batch-actions { border:0; margin:0 0 9px; padding:0; display:flex; flex-wrap:wrap; gap:0; }
+    .batch-actions label { position:relative; flex:1; min-width:0; }
+    .batch-actions input { position:absolute; opacity:0; width:1px; height:1px; }
+    .batch-actions span { display:block; text-align:center; padding:6px 4px; color:#606266; border:1px solid #dcdfe6; background:white; font-size:12px; white-space:nowrap; }
+    .batch-actions label + label span { border-left:0; }
+    .batch-actions label:first-child span { border-radius:4px 0 0 4px; }
+    .batch-actions label:last-child span { border-radius:0 4px 4px 0; }
+    .batch-actions input:checked + span { color:var(--blue-dark); background:#ecf5ff; box-shadow:inset 0 0 0 1px #98c8fc; border-color:#98c8fc; }
+    .batch-actions input:focus-visible + span { outline:2px solid var(--blue); outline-offset:2px; }
+    .operation-summary { padding:8px 10px; min-height:36px; background:#fff8ed; color:#aa741e; border-radius:4px; font-size:12px; }
+    .submodel { margin-top:0; }
+    .submodel .field-label { margin-bottom:7px; }
+    .existing-label { color:#9da7b4; font-size:11px; margin-left:auto; font-weight:400; }
+    .context-value { height:36px; padding:6px 11px; border:1px solid #dcdfe6; border-radius:4px; color:#606266; background:white; font-size:13px; display:flex; align-items:center; justify-content:space-between; }
+    .context-chevron { color:#bdc3cc; }
+    .stage[data-mode="view"] .context-value { background:#f5f7fa; color:#a1a7b2; border-color:#e4e7ed; cursor:not-allowed; }
+    .model-context { margin-top:14px; padding:9px 14px 11px; border:1px solid #e3eaf5; border-radius:7px; background:#f8fbff; }
+    .model-context-title { color:#394d6a; font-size:13px; font-weight:600; border-left:3px solid #409eff; padding-left:8px; }
+    .model-context-content { display:flex; align-items:center; gap:10px; margin:8px 0 0; color:#8794a6; font-size:12px; }
+    .model-pill { border:1px solid #97c4ff; background:#eef6ff; color:#409eff; border-radius:15px; padding:3px 12px; }
+    .model-pills { display:flex; flex-wrap:wrap; gap:7px; }
+    .existing-rest { margin-left:auto; font-size:11px; color:#a0aaba; }
+    .panel-footer { display:flex; justify-content:flex-end; gap:9px; flex-wrap:wrap; padding:10px 22px; border-top:1px solid #ebeef5; }
+    .button { padding:7px 15px; color:#606266; background:white; border:1px solid #dcdfe6; border-radius:4px; font-size:13px; line-height:1.5; }
+    .button:hover { background:#ecf5ff; border-color:#b3d8ff; color:var(--blue); }
+    .button.primary { background:var(--blue); color:white; border-color:var(--blue); }
+    .button.primary:hover { background:#66b1ff; border-color:#66b1ff; }
+    .reopen { margin:24px auto; }
+    .feedback { margin:12px 0 0; padding:11px 14px; border:1px solid #c6e5ca; border-radius:5px; background:#f2faf3; color:#4e8654; font-size:13px; overflow-wrap:anywhere; scroll-margin:12px; }
+    .feedback-message { white-space:pre-line; }
+    .demo-controls .demo-note { margin:6px 0 0; color:#98a2b0; font-size:11px; }
+    @media (max-width:980px) { .page { padding:18px; } .workbench { grid-template-columns:1fr; gap:14px; } .annotations { display:grid; grid-template-columns:1fr 240px; column-gap:20px; padding:0; } .annotations p { margin-bottom:0; } .demo-controls { grid-column:2; grid-row:1 / span 2; margin:0; padding:0 0 0 16px; border-top:0; border-left:1px solid #dfe5ed; } .stage { padding:12px; } .panel { max-width:none; } }
+    @media (max-width:600px) { .page { padding:14px 12px; } h1 { font-size:21px; } .top { display:block; } .demo-badge { display:inline-block; margin-top:8px; } .toolbar { margin:12px 0; gap:8px; } .tabs { width:100%; } .tab { flex:1; padding:7px 5px; font-size:12px; } .annotations { display:block; } .annotations h2 { font-size:14px; } .annotations p { font-size:12px; } .demo-controls { border:0; padding:0; margin-top:10px; } .demo-controls select { width:100%; min-width:0; } .stage,.stage[data-mode="import"],.stage[data-mode="bulk"] { padding:8px; } .panel-header { padding:10px 16px; } .panel-body { padding:14px 16px; } .field-grid { grid-template-columns:1fr; gap:16px; } .panel-footer { padding:10px; gap:6px; } .button { padding:7px 10px; font-size:12px; } .existing-rest { display:none; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="top">
+      <div><p class="eyebrow">AI 生图 · 美工版 / 运营版</p><h1>敏感词库与替换词库</h1><p class="subtitle">局部交互原型 · 仅展示新增字段及相邻位置</p></div>
+      <span class="demo-badge">静态演示 · 不调用真实接口</span>
+    </header>
+    <div class="toolbar">
+      <nav class="tabs" aria-label="原型场景" role="tablist">
+        <button class="tab" id="tab-create" role="tab" aria-controls="preview" aria-selected="true" data-mode="create">新增抽屉</button>
+        <button class="tab" id="tab-edit" role="tab" aria-controls="preview" aria-selected="false" data-mode="edit" tabindex="-1">编辑抽屉</button>
+        <button class="tab" id="tab-view" role="tab" aria-controls="preview" aria-selected="false" data-mode="view" tabindex="-1">查看抽屉</button>
+        <button class="tab" id="tab-import" role="tab" aria-controls="preview" aria-selected="false" data-mode="import" tabindex="-1">批量导入</button>
+        <button class="tab" id="tab-bulk" role="tab" aria-controls="preview" aria-selected="false" data-mode="bulk" tabindex="-1">批量修改</button>
+      </nav>
+      <button class="reset" id="reset">↺ 恢复初始演示</button>
+    </div>
+    <div class="workbench">
+      <aside class="annotations" aria-label="原型说明">
+        <h2 id="scenario-heading">新增任务抽屉</h2>
+        <p id="scenario-description">默认不选，可分别选择或清空。</p>
+        <div class="demo-controls" id="load-demo">
+          <div class="model-demo">
+            <label for="model-mode">演示：启用模型</label>
+            <select id="model-mode">
+              <option value="linkfox">仅 LinkFox</option>
+              <option value="mixed">LinkFox + 自研</option>
+              <option value="other">仅自研（未启用 LinkFox）</option>
+            </select>
+            <p class="demo-note" id="visibility-note"></p>
+          </div>
+          <div class="query-controls">
+            <p class="demo-note" id="query-count"></p>
+            <div class="query-demo" id="query-demo">
+              <div class="query-demo-item" id="sensitive-query-demo">
+                <label for="load-state">演示：敏感词库状态</label>
+                <select id="load-state" data-query-key="sensitive"></select>
+              </div>
+              <div class="query-demo-item" id="replace-query-demo">
+                <label for="replace-load-state">演示：替换词库状态</label>
+                <select id="replace-load-state" data-query-key="replace"></select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+      <div class="preview-column">
+      <section class="stage" id="preview" data-mode="create" role="tabpanel" aria-labelledby="tab-create">
+        <article class="panel" id="panel" aria-labelledby="panel-title">
+          <header class="panel-header"><h2 id="panel-title">新增任务</h2><button class="close" id="close-panel" aria-label="关闭预览">×</button></header>
+          <form id="prototype-form" novalidate>
+            <div class="panel-body">
+              <div class="context-cut">上方既有内容省略</div>
+              <section class="new-fields" id="library-region" aria-labelledby="library-title">
+                <span class="annotation-tag">本次新增</span>
+                <h3 class="library-title field-label" id="library-title">LinkFox违禁词库</h3>
+                <div class="info"><span class="info-icon" aria-hidden="true">i</span><span>多模型适配：该字段仅 LinkFox 使用；自研、阿里绘蛙忽略此字段。</span></div>
+                <div class="field-grid" id="library-fields"></div>
+              </section>
+              <section class="submodel" id="linkfox-submodel" aria-label="相邻现有字段">
+                <div class="field-label">LinkFox 子模型 <span class="existing-label">现有字段 · 位置参照</span></div>
+                <div class="info"><span class="info-icon" aria-hidden="true">i</span><span>多模型适配：该字段仅 LinkFox 使用；自研、阿里绘蛙忽略此字段。</span></div>
+                <div class="context-value"><span>谷歌香蕉1Pro</span><span class="context-chevron" aria-hidden="true">⌄</span></div>
+              </section>
+              <section class="model-context" aria-label="现有模型配置示意">
+                <div class="model-context-title">模型与数量配置</div>
+                <div class="model-context-content"><span>启用模型</span><span class="model-pills" id="model-pills"></span><span class="existing-rest">其余现有配置省略</span></div>
+              </section>
+            </div>
+            <footer class="panel-footer" id="panel-footer"></footer>
+          </form>
+        </article>
+        <button class="button reopen" id="reopen-panel" hidden>重新打开预览</button>
+      </section>
+        <div class="feedback" id="feedback" role="status" aria-label="演示结果" aria-live="polite" hidden>
+          <div class="feedback-message" id="feedback-message"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <div class="candidate-tooltip" id="candidate-tooltip" role="tooltip" hidden></div>
+  <script>
+    'use strict';
+    // Offline list data with fictional long-name and duplicate-name fixtures marked “演示”.
+    // IDs stay strings. No credentials or API requests.
+    const libraries = {
+      sensitive: [
+        { id:'900000000000000001', name:'通用敏感词库' },
+        { id:'910000000000000001', name:'【演示】长名称敏感词库——Amazon 多站点商品标题与图片文案合规检查，用于核对超长名称完整展示、键盘查看及只读回显' },
+        { id:'910000000000000002', name:'【演示】同名敏感词库' },
+        { id:'910000000000000003', name:'【演示】同名敏感词库' }
+      ],
+      replace: [
+        { id:'2109888918580215808', name:'test 3' },
+        { id:'920000000000000001', name:'【演示】长名称替换词库——Amazon 多站点商品卖点与详情图片文案替换，用于核对超长名称完整展示、键盘查看及只读回显' },
+        { id:'920000000000000002', name:'【演示】同名替换词库' },
+        { id:'920000000000000003', name:'【演示】同名替换词库' }
+      ]
+    };
+    const labels = { sensitive:'敏感词库', replace:'替换词库' };
+    const descriptions = { sensitive:'命中的敏感词由 AI 改写规避。', replace:'命中的词按预设替换词直接替换。' };
+    const scenes = {
+      create: { heading:'新增任务抽屉', title:'新增任务', description:'默认不选，可分别选择或清空。' },
+      edit: { heading:'编辑任务抽屉', title:'编辑任务', description:'回显已有配置，可更换或清空。' },
+      view: { heading:'查看任务抽屉', title:'查看任务', description:'只读查看词库配置，不可修改。' },
+      import: { heading:'批量导入弹窗', title:'批量导入任务', description:'统一选择，应用到本次导入的所有任务。' },
+      bulk: { heading:'批量修改弹窗', title:'批量修改配置', description:'每项独立选择：保持不变、设置词库或清空。' }
+    };
+    const keys = ['sensitive','replace'];
+    const idFields = { sensitive:'sensitiveLibraryId', replace:'replaceLibraryId' };
+    const queryControls = { sensitive:'load-state', replace:'replace-load-state' };
+    const queryScenarios = [['missing','原 ID 不在列表'],['ready','正常列表'],['loading','加载中'],['empty','暂无可选词库'],['error','加载失败']];
+    const $ = id => document.getElementById(id);
+    const escapeHTML = value => String(value).replace(/[&<>"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch]));
+    let mode = 'create';
+    let modelMode = 'linkfox';
+    let openChoiceKey = null;
+    let candidateInput = 'pointer';
+    let selectionHoverTimer = null;
+    let selectionHoverTarget = null;
+    let state;
+    const initialExample = { sensitiveLibraryId:'900000000000000001', replaceLibraryId:'2109888918580215808' };
+    let savedExample = {...initialExample};
+
+    // Query results exist only for the current open scene; task records contain IDs only.
+    function simulateLibraryQuery(key, scenario, selectedId) {
+      let items = libraries[key].map(item => ({...item}));
+      if (scenario === 'missing' && selectedId) items = items.filter(item => item.id !== selectedId);
+      if (['empty','loading','error'].includes(scenario)) items = [];
+      const complete = ['ready','missing','empty'].includes(scenario);
+      return { scenario, status:complete ? 'ready' : scenario, complete, items };
+    }
+    // Production uses the existing submodel visibility condition in each entry.
+    // This review-only selector represents that shared condition, not a new
+    // any/all rule for mixed selections in bulk modification.
+    function linkfoxVisible() { return modelMode !== 'other'; }
+    function requestLibrary(key, scenario) {
+      if (!linkfoxVisible() || $('panel').hidden) return;
+      if (scenario === 'missing' && !state.draft[key]) scenario = 'ready';
+      state.queryModes[key] = scenario;
+      state.queries[key] = simulateLibraryQuery(key,scenario,state.draft[key]);
+      state.queryCount++;
+      renderQueryCount();
+    }
+    function renderQueryCount() {
+      $('query-count').textContent = '本次打开：词库模拟查询 ' + state.queryCount + ' 次';
+    }
+    function renderQueryControls() {
+      $('load-demo').hidden = $('panel').hidden;
+      let hasVisibleQuery = false;
+      keys.forEach(key => {
+        const id = state.draft[key], control = $(queryControls[key]);
+        const visible = !$('panel').hidden && linkfoxVisible()
+          && (mode !== 'bulk' || state.actions[key] === 'set')
+          && (mode !== 'view' || Boolean(id));
+        $(key + '-query-demo').hidden = !visible;
+        hasVisibleQuery ||= visible;
+        const found = state.queries[key]?.items.some(item => item.id === id);
+        // Leaving the missing-ID demo preserves the loaded list and query count.
+        if (state.queryModes[key] === 'missing' && (!id || found)) state.queryModes[key] = 'ready';
+        const missingOption = control.querySelector('option[value="missing"]');
+        if (missingOption) missingOption.disabled = !id;
+        control.value = state.queryModes[key];
+      });
+      $('query-demo').hidden = !hasVisibleQuery;
+    }
+    function renderVisibility() {
+      const visible = linkfoxVisible();
+      $('model-mode').value = modelMode;
+      $('library-region').hidden = !visible;
+      $('linkfox-submodel').hidden = !visible;
+      $('model-pills').innerHTML = (modelMode === 'linkfox' ? ['LinkFox'] : modelMode === 'mixed' ? ['LinkFox','自研'] : ['自研']).map(name => '<span class="model-pill">✓ ' + name + '</span>').join('');
+      $('visibility-note').textContent = (mode === 'bulk' || mode === 'import')
+        ? '沿用现有 LinkFox 子模型的显示条件。'
+        : '未启用 LinkFox 时隐藏词库配置，保留 ID。';
+      if (visible) keys.forEach(key => { if (!state.queries[key]) requestLibrary(key,state.queryModes[key]); });
+      renderQueryCount();
+    }
+    function resolveLibrary(key) {
+      const id = state.draft[key], query = state.queries[key] || {status:'loading',complete:false,items:[]};
+      const ready = query.status === 'ready' && query.complete;
+      const available = ready ? query.items : [];
+      const item = id ? available.find(entry => entry.id === id) : null;
+      const fallback = query.status === 'loading' ? '正在加载词库名称' : ready ? '词库当前不可选' : '词库加载失败';
+      return { id, query, ready, available, item, display:id ? (item?.name || fallback) : '未选择' };
+    }
+
+    function fieldMarkup(key) {
+      const label = labels[key], action = state.actions[key];
+      const { id, query, ready, available, item, display } = resolveLibrary(key);
+      const tooltip = item ? `<span class="selection-tooltip" id="${key}-tooltip" role="tooltip" hidden><span>${escapeHTML(display)}</span><span class="tooltip-id">ID：${escapeHTML(id)}</span></span>` : '';
+      const detailId = id ? key + (item ? '-tooltip' : '-id-detail') : '';
+      const readonlyFocus = id ? ` tabindex="0" role="group" aria-label="${escapeHTML(label + '完整信息')}" aria-describedby="${detailId}"` : '';
+      const disabled = mode === 'view' || !ready || available.length === 0;
+      const hasChoice = mode !== 'bulk' || action === 'set';
+      const optionPlaceholder = query.status === 'loading' ? '正在加载…' : !ready ? '加载失败' : !available.length ? '暂无可选词库' : '请选择' + label;
+      const choiceText = id || mode === 'view' ? display : optionPlaceholder;
+      const describedBy = `${key}-help${detailId ? ' ' + detailId : ''}${state.errors[key] ? ' ' + key + '-error' : ''}`;
+      const candidates = available.map((entry,index) => {
+        const duplicated = available.filter(other => other.name === entry.name).length > 1;
+        return `<button type="button" class="candidate-option" role="option" id="${key}-option-${index}" tabindex="-1" aria-selected="${entry.id === id}" aria-describedby="candidate-tooltip" data-candidate-key="${key}" data-candidate-id="${escapeHTML(entry.id)}" data-candidate-name="${escapeHTML(entry.name)}"><span class="candidate-name">${escapeHTML(entry.name)}</span>${duplicated ? '<span class="candidate-id">ID：' + escapeHTML(entry.id) + '</span>' : ''}</button>`;
+      }).join('');
+      const actions = mode === 'bulk' ? `<fieldset class="batch-actions" aria-label="${label}修改方式">${[['keep','保持不变'],['set','设置词库'],['clear','清空']].map(([value,text]) => `<label><input id="${key}-${value}" type="radio" name="${key}-action" value="${value}" data-action-key="${key}" ${action === value ? 'checked' : ''}><span>${text}</span></label>`).join('')}</fieldset>` : '';
+      let control = '';
+      if (hasChoice) {
+        const choice = disabled
+          ? `<select id="${key}-choice" class="choice ${id ? '' : 'placeholder'}" aria-label="${label}" aria-describedby="${describedBy}" aria-invalid="${Boolean(state.errors[key])}" disabled><option value="${escapeHTML(id || '')}">${escapeHTML(choiceText)}</option></select>`
+          : `<button type="button" id="${key}-choice" class="choice ${id ? '' : 'placeholder'}" role="combobox" aria-label="${label}" aria-haspopup="listbox" aria-expanded="false" aria-controls="${key}-options" aria-describedby="${describedBy}" aria-invalid="${Boolean(state.errors[key])}" data-choice-key="${key}" data-value="${escapeHTML(id || '')}">${escapeHTML(choiceText)}</button>`;
+        control = `<div class="select-wrap"${disabled ? readonlyFocus : ''}>${choice}${id && mode !== 'view' ? `<button type="button" class="clear-choice" data-clear-key="${key}" aria-label="清除${label}选择">×</button>` : ''}${tooltip}${!disabled ? `<div class="candidate-menu" id="${key}-options" role="listbox" aria-label="${label}候选项" hidden>${candidates}</div>` : ''}</div>`;
+        if (id && !item) control += `<p class="id-detail" id="${key}-id-detail">ID：${escapeHTML(id)}</p>`;
+        if (query.status === 'error' && (mode !== 'view' || id)) {
+          control += `<div class="error">词库加载失败，请重试。<button type="button" class="retry" data-retry-key="${key}" aria-label="重试${label}查询">重试</button></div>`;
+        }
+        if (ready && id && !item && !state.errors[key]) control += `<div class="error">${mode === 'view' ? '当前列表中未找到该 ID。' : '原词库当前不可选，请重新选择或清空。'}</div>`;
+        if (state.errors[key]) control += `<div class="error" id="${key}-error" role="alert">${escapeHTML(state.errors[key])}</div>`;
+      } else if (action === 'clear') {
+        control = `<div class="operation-summary">将清空所选任务的${label}</div>`;
+      }
+      return `<div class="field"><label class="field-label" ${hasChoice ? 'for="' + key + '-choice"' : ''}>${label}</label>${actions}${control}<p class="help" id="${key}-help">${mode !== 'bulk' ? '选填，' : ''}${descriptions[key]}</p></div>`;
+    }
+
+    function hideSelectionInfo() {
+      clearTimeout(selectionHoverTimer);
+      selectionHoverTimer = null;
+      selectionHoverTarget = null;
+      document.querySelectorAll('.selection-tooltip').forEach(tip => { tip.hidden = true; });
+    }
+    function showSelectionInfo(wrap) {
+      if (!wrap?.isConnected || openChoiceKey || $('panel').hidden || !linkfoxVisible()) return;
+      const tip = wrap.querySelector('.selection-tooltip');
+      if (tip) tip.hidden = false;
+    }
+    function hideCandidateInfo() { $('candidate-tooltip').hidden = true; }
+    function showCandidateInfo(option) {
+      const tip = $('candidate-tooltip');
+      tip.innerHTML = '<span>' + escapeHTML(option.dataset.candidateName) + '</span><span class="tooltip-id">ID：' + escapeHTML(option.dataset.candidateId) + '</span>';
+      tip.hidden = false;
+      const rect = option.getBoundingClientRect(), margin = 12;
+      const left = rect.right + margin + tip.offsetWidth <= window.innerWidth ? rect.right + margin : Math.max(margin,rect.left - tip.offsetWidth - margin);
+      tip.style.left = Math.min(left,window.innerWidth - tip.offsetWidth - margin) + 'px';
+      tip.style.top = Math.max(margin,Math.min(rect.top,window.innerHeight - tip.offsetHeight - margin)) + 'px';
+    }
+    function closeChoices(restoreFocus = false) {
+      hideSelectionInfo();
+      const key = openChoiceKey;
+      document.querySelectorAll('.candidate-menu').forEach(menu => { menu.hidden = true; });
+      document.querySelectorAll('[data-choice-key]').forEach(choice => { choice.setAttribute('aria-expanded','false'); choice.closest('.select-wrap').classList.remove('is-open'); });
+      openChoiceKey = null;
+      hideCandidateInfo();
+      if (restoreFocus && key) $(key + '-choice')?.focus();
+    }
+    function openChoices(key,fromEnd = false) {
+      closeChoices();
+      const menu = $(key + '-options'), choice = $(key + '-choice');
+      if (!menu || !choice) return;
+      menu.hidden = false;
+      menu.style.top = 'calc(100% + 6px)';
+      menu.style.bottom = 'auto';
+      const rect = choice.getBoundingClientRect(), below = window.innerHeight - rect.bottom - 18;
+      const above = rect.top - 18, flip = below < 220 && above > below;
+      menu.style.maxHeight = Math.max(80,Math.min(250,flip ? above : below)) + 'px';
+      if (flip) { menu.style.top = 'auto'; menu.style.bottom = 'calc(100% + 6px)'; }
+      choice.setAttribute('aria-expanded','true');
+      choice.closest('.select-wrap').classList.add('is-open');
+      openChoiceKey = key;
+      const options = Array.from(menu.querySelectorAll('[role="option"]'));
+      const selected = options.find(option => option.dataset.candidateId === state.draft[key]);
+      const active = selected || options[fromEnd ? options.length - 1 : 0];
+      active?.focus({preventScroll:true});
+      active?.scrollIntoView({block:'nearest'});
+      if (active && candidateInput === 'keyboard') showCandidateInfo(active);
+    }
+
+    function renderFields() {
+      closeChoices();
+      renderQueryControls();
+      if (!linkfoxVisible() || $('panel').hidden) { $('library-fields').innerHTML = ''; return; }
+      const focused = document.activeElement?.id;
+      $('library-fields').innerHTML = keys.map(fieldMarkup).join('');
+      if (focused && $(focused)) $(focused).focus();
+    }
+    function renderScene() {
+      const scene = scenes[mode];
+      $('scenario-heading').textContent = scene.heading;
+      $('scenario-description').textContent = scene.description;
+      $('panel-title').textContent = scene.title;
+      $('preview').dataset.mode = mode;
+      $('preview').setAttribute('aria-labelledby','tab-' + mode);
+      document.querySelectorAll('.tab').forEach(button => { const active = button.dataset.mode === mode; button.setAttribute('aria-selected',String(active)); button.tabIndex = active ? 0 : -1; });
+      const scenarios = queryScenarios.filter(([value]) => value !== 'missing' || mode === 'edit' || mode === 'view');
+      keys.forEach(key => {
+        $(queryControls[key]).innerHTML = scenarios.map(([value,text]) => `<option value="${value}">${text}</option>`).join('');
+      });
+      $('panel').hidden = false;
+      $('reopen-panel').hidden = true;
+      $('feedback').hidden = true;
+      const secondary = mode === 'create' || mode === 'edit' ? '<button class="button" type="submit" name="intent" value="save">保存为待提交</button>' : '';
+      const primaryText = mode === 'import' ? '确认导入' : mode === 'bulk' ? '应用修改' : '保存并提交生图';
+      $('panel-footer').innerHTML = mode === 'view'
+        ? '<button class="button" type="button" id="cancel">关闭</button>'
+        : `<button class="button" type="button" id="cancel">取消</button>${secondary}<button class="button primary" type="submit" name="intent" value="primary">${primaryText}</button>`;
+      renderVisibility();
+      renderFields();
+    }
+    function resetScene(nextMode = mode) {
+      mode = nextMode;
+      const draft = Object.fromEntries(keys.map(key => [key,mode === 'edit' || mode === 'view' ? savedExample[idFields[key]] : null]));
+      // Highlight missing saved IDs by default in this static review demo only.
+      const queryModes = Object.fromEntries(keys.map(key => [key,draft[key] ? 'missing' : 'ready']));
+      state = { draft, actions:{sensitive:'keep',replace:'keep'}, errors:{}, queries:{}, queryModes, queryCount:0 };
+      renderScene();
+    }
+    function showFeedback(message) {
+      $('feedback-message').textContent = message;
+      $('feedback').hidden = false;
+      $('feedback').scrollIntoView({block:'nearest'});
+    }
+    function closePanel() {
+      closeChoices();
+      $('panel').hidden = true;
+      $('reopen-panel').hidden = false;
+      $('feedback').hidden = true;
+      renderQueryControls();
+      $('reopen-panel').focus();
+    }
+
+    document.addEventListener('click', event => {
+      const candidate = event.target.closest('[data-candidate-key]');
+      if (candidate) {
+        const key = candidate.dataset.candidateKey;
+        const item = resolveLibrary(key).available.find(entry => entry.id === candidate.dataset.candidateId);
+        if (!item) return;
+        state.draft[key] = item.id;
+        delete state.errors[key];
+        $('feedback').hidden = true;
+        renderFields();
+        $(key + '-choice')?.focus();
+        return;
+      }
+      const choiceButton = event.target.closest('[data-choice-key]');
+      if (choiceButton) {
+        const key = choiceButton.dataset.choiceKey;
+        candidateInput = event.detail === 0 ? 'keyboard' : 'pointer';
+        if (openChoiceKey === key) closeChoices(true); else openChoices(key);
+        return;
+      }
+      if (!event.target.closest('.select-wrap')) closeChoices();
+      const tabButton = event.target.closest('.tab');
+      if (tabButton) { resetScene(tabButton.dataset.mode); return; }
+      const clearButton = event.target.closest('[data-clear-key]');
+      if (clearButton) { const key = clearButton.dataset.clearKey; state.draft[key] = null; delete state.errors[key]; $('feedback').hidden = true; renderFields(); $(key + '-choice')?.focus(); return; }
+      if (event.target.id === 'reset') {
+        modelMode = 'linkfox';
+        savedExample = {...initialExample};
+        resetScene();
+        return;
+      }
+      if (event.target.id === 'reopen-panel') resetScene();
+      if (event.target.id === 'close-panel' || event.target.id === 'cancel') closePanel();
+      const retryButton = event.target.closest('[data-retry-key]');
+      if (retryButton) {
+        const key = retryButton.dataset.retryKey;
+        requestLibrary(key,'ready');
+        delete state.errors[key];
+        $('feedback').hidden = true;
+        $(queryControls[key]).value = 'ready';
+        renderFields();
+        if (mode === 'view') $(queryControls[key]).focus(); else $(key + '-choice')?.focus();
+      }
+    });
+    document.addEventListener('change', event => {
+      const target = event.target;
+      if (target.id === 'model-mode') {
+        modelMode = target.value;
+        state.errors = {};
+        $('feedback').hidden = true;
+        renderVisibility();
+        renderFields();
+      } else if (target.dataset.actionKey) {
+        state.actions[target.dataset.actionKey] = target.value;
+        delete state.errors[target.dataset.actionKey];
+        $('feedback').hidden = true;
+        renderFields();
+      } else if (target.dataset.queryKey) {
+        const key = target.dataset.queryKey;
+        requestLibrary(key,target.value);
+        delete state.errors[key];
+        $('feedback').hidden = true;
+        renderFields();
+      }
+    });
+    document.addEventListener('pointerdown', hideSelectionInfo);
+    document.addEventListener('pointermove', event => {
+      const option = event.target.closest('[data-candidate-key]');
+      if (option) { candidateInput = 'pointer'; showCandidateInfo(option); }
+      const wrap = event.target.closest('.select-wrap');
+      if (openChoiceKey || !wrap?.querySelector('.selection-tooltip') || event.target.closest('.clear-choice')) {
+        hideSelectionInfo();
+        return;
+      }
+      // Start only on intentional pointer movement, never on selection or rerender.
+      if (selectionHoverTarget !== wrap) {
+        hideSelectionInfo();
+        selectionHoverTarget = wrap;
+        selectionHoverTimer = setTimeout(() => {
+          if (wrap.matches(':hover')) showSelectionInfo(wrap);
+        },300);
+      }
+    });
+    document.addEventListener('pointerout', event => {
+      const option = event.target.closest('[data-candidate-key]');
+      if (candidateInput === 'pointer' && option && !option.contains(event.relatedTarget)) hideCandidateInfo();
+      const wrap = event.target.closest('.select-wrap');
+      if (wrap && !wrap.contains(event.relatedTarget)) hideSelectionInfo();
+    });
+    document.addEventListener('focusout', hideSelectionInfo);
+    document.addEventListener('focusin', event => {
+      hideSelectionInfo();
+      const option = event.target.closest('[data-candidate-key]');
+      if (option) {
+        if (candidateInput === 'keyboard') showCandidateInfo(option);
+      }
+      else if (!event.target.closest('.select-wrap')) closeChoices();
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Tab') {
+        hideSelectionInfo();
+        // Wait for native Tab navigation; programmatic return focus stays quiet.
+        setTimeout(() => {
+          const target = document.activeElement;
+          if (document.hasFocus() && target?.matches('.choice,.select-wrap')) showSelectionInfo(target.closest('.select-wrap'));
+        },0);
+      } else if (event.key === 'Escape') {
+        hideSelectionInfo();
+      }
+      const choice = event.target.closest('[data-choice-key]');
+      const option = event.target.closest('[data-candidate-key]');
+      if (choice || option) candidateInput = 'keyboard';
+      if (choice && ['ArrowDown','ArrowUp'].includes(event.key)) {
+        event.preventDefault(); openChoices(choice.dataset.choiceKey,event.key === 'ArrowUp');
+      } else if (openChoiceKey && event.key === 'Escape') {
+        event.preventDefault(); closeChoices(true);
+      } else if (option && event.key === 'Tab') {
+        closeChoices(true);
+      } else if (option && ['ArrowDown','ArrowUp','Home','End'].includes(event.key)) {
+        event.preventDefault();
+        const options = Array.from(option.closest('[role="listbox"]').querySelectorAll('[role="option"]'));
+        const current = options.indexOf(option);
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1 : (current + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+        options[next].focus({preventScroll:true}); options[next].scrollIntoView({block:'nearest'}); showCandidateInfo(options[next]);
+      }
+    });
+    window.addEventListener('resize',() => closeChoices());
+    document.querySelector('.tabs').addEventListener('keydown', event => {
+      if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+      event.preventDefault();
+      const modes = Object.keys(scenes), current = modes.indexOf(mode);
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? modes.length - 1 : (current + (event.key === 'ArrowRight' ? 1 : -1) + modes.length) % modes.length;
+      resetScene(modes[next]); $('tab-' + mode).focus();
+    });
+    $('prototype-form').addEventListener('submit', event => {
+      event.preventDefault();
+      if (mode === 'view') return;
+      $('feedback').hidden = true;
+      state.errors = {};
+      const isTaskDrawer = mode === 'create' || mode === 'edit';
+      const submitsGeneration = isTaskDrawer && event.submitter?.value !== 'save';
+      // Query state only controls name display and available choices;
+      // it does not block submission.
+      if (mode === 'bulk' && linkfoxVisible()) keys.forEach(key => { if (state.actions[key] === 'set' && !state.draft[key]) state.errors[key] = '请选择' + labels[key] + '，或改为保持不变 / 清空。'; });
+      if (Object.keys(state.errors).length) {
+        renderFields();
+        const choice = $(Object.keys(state.errors)[0] + '-choice');
+        (choice?.disabled ? choice.closest('.select-wrap') : choice)?.focus();
+        return;
+      }
+      renderFields();
+      const summary = keys.map(key => {
+        const action = linkfoxVisible() ? state.actions[key] : 'keep';
+        const value = mode === 'bulk' && action !== 'set' ? (action === 'keep' ? '保持不变' : '清空') : state.draft[key] ? 'ID：' + state.draft[key] : '未选择';
+        return labels[key] + '：' + value;
+      }).join('\n');
+      if (isTaskDrawer) savedExample = Object.fromEntries(keys.map(key => [idFields[key],state.draft[key]]));
+      const generationMessage = modelMode === 'other'
+        ? '模拟保存并提交自研：词库 ID 不传给自研。'
+        : '模拟保存并提交：词库 ID 仅传给 LinkFox，未选择的字段省略。';
+      const prefix = mode === 'import' ? '导入成功，所有导入任务统一使用本次选择。' : mode === 'bulk' ? '批量修改成功。' : submitsGeneration ? generationMessage : '已保存为待提交。';
+      const hiddenNote = linkfoxVisible() ? '' : mode === 'bulk' ? '\n词库区域隐藏，两项保持不变。' : '\n词库区域隐藏，仍保留所选 ID。';
+      showFeedback(prefix + hiddenNote + '\n' + summary);
+    });
+    resetScene();
+  </script>
+</body>
+</html>
